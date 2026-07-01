@@ -294,7 +294,7 @@ function dbWith({
                   }
                   // Per-subnet transfer volume: totals aggregate (before the generic
                   // netuid-only subnet-events match below).
-                  if (/COUNT\(DISTINCT hotkey\) AS unique_senders/.test(sql)) {
+                  if (/COUNT\(DISTINCT CASE WHEN coldkey IN/.test(sql)) {
                     return {
                       results: subnetTransferVolume?.totals
                         ? [subnetTransferVolume.totals]
@@ -303,13 +303,17 @@ function dbWith({
                   }
                   if (
                     /GROUP BY hotkey/.test(sql) &&
-                    /FROM neurons WHERE netuid = \?/.test(sql)
+                    /hotkey IN \(SELECT hotkey FROM neurons WHERE netuid = \? AND hotkey IS NOT NULL\)/.test(
+                      sql,
+                    )
                   ) {
                     return { results: subnetTransferVolume?.senders || [] };
                   }
                   if (
                     /GROUP BY coldkey/.test(sql) &&
-                    /FROM neurons WHERE netuid = \?/.test(sql)
+                    /coldkey IN \(SELECT hotkey FROM neurons WHERE netuid = \? AND hotkey IS NOT NULL\)/.test(
+                      sql,
+                    )
                   ) {
                     return { results: subnetTransferVolume?.receivers || [] };
                   }

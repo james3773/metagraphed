@@ -125,7 +125,7 @@ describe("loadSubnetTransferVolume", () => {
     const calls = [];
     const d1 = async (sql, params) => {
       calls.push({ sql, params });
-      if (/COUNT\(DISTINCT hotkey\)/.test(sql)) {
+      if (/COUNT\(DISTINCT CASE WHEN coldkey IN/.test(sql)) {
         return [
           {
             transfer_count: 5,
@@ -152,9 +152,9 @@ describe("loadSubnetTransferVolume", () => {
     for (const { sql, params } of calls) {
       assert.match(sql, /FROM account_events/);
       assert.match(sql, /FROM neurons WHERE netuid = \?/);
-      assert.equal(params[0], TRANSFER_KIND);
-      assert.equal(params[1], Date.now() - 30 * DAY_MS);
       assert.ok(params.includes(7));
+      assert.ok(params.includes(TRANSFER_KIND));
+      assert.ok(params.includes(Date.now() - 30 * DAY_MS));
     }
     assert.doesNotMatch(calls[0].sql, /netuid = \? AND event_kind/);
     assert.equal(data.netuid, 7);
@@ -165,19 +165,62 @@ describe("loadSubnetTransferVolume", () => {
     vi.useRealTimers();
   });
 
+  test("top_receivers ranks only registered subnet hotkeys, not external counterparties", async () => {
+    const calls = [];
+    const d1 = async (sql, params) => {
+      calls.push({ sql, params });
+      if (/COUNT\(DISTINCT CASE WHEN coldkey IN/.test(sql)) {
+        return [
+          {
+            transfer_count: 2,
+            total_volume_tao: 100,
+            unique_senders: 1,
+            unique_receivers: 1,
+          },
+        ];
+      }
+      if (/GROUP BY hotkey/.test(sql)) {
+        return [
+          { address: "5SubnetSender", volume_tao: 100, transfer_count: 2 },
+        ];
+      }
+      if (/GROUP BY coldkey/.test(sql)) {
+        return [
+          { address: "5SubnetReceiver", volume_tao: 40, transfer_count: 1 },
+        ];
+      }
+      return [];
+    };
+    const { data } = await loadSubnetTransferVolume(d1, 7, { limit: 5 });
+    const receivers = calls.find((c) => /GROUP BY coldkey/.test(c.sql));
+    assert.ok(receivers);
+    assert.match(
+      receivers.sql,
+      /coldkey IN \(SELECT hotkey FROM neurons WHERE netuid = \? AND hotkey IS NOT NULL\)/,
+    );
+    assert.doesNotMatch(
+      receivers.sql,
+      /OR coldkey IN \(SELECT hotkey FROM neurons/,
+    );
+    assert.equal(receivers.params[0], TRANSFER_KIND);
+    assert.equal(receivers.params[2], 7);
+    assert.equal(receivers.params[3], 5);
+    assert.equal(data.top_receivers[0].address, "5SubnetReceiver");
+  });
+
   test("defaults to the 30d window and limit when none is given", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-06-30T00:00:00.000Z"));
     const calls = [];
     const d1 = async (sql, params) => {
       calls.push({ sql, params });
-      if (/COUNT\(DISTINCT hotkey\)/.test(sql)) return [{}];
+      if (/COUNT\(DISTINCT CASE WHEN coldkey IN/.test(sql)) return [{}];
       return [];
     };
     const { data } = await loadSubnetTransferVolume(d1, 1, {});
     assert.equal(data.window, DEFAULT_SUBNET_TRANSFER_VOLUME_WINDOW);
     assert.equal(
-      calls[0].params[1],
+      calls[0].params[3],
       Date.now() - SUBNET_TRANSFER_VOLUME_WINDOWS["30d"] * DAY_MS,
     );
     assert.equal(calls[1].params[3], SUBNET_TRANSFER_LIMIT_DEFAULT);
@@ -197,7 +240,7 @@ describe("loadSubnetTransferVolume", () => {
 
   test("a null MAX(observed_at) leaves generated_at null (not epoch zero)", async () => {
     const d1 = async (sql) => {
-      if (/COUNT\(DISTINCT hotkey\)/.test(sql)) {
+      if (/COUNT\(DISTINCT CASE WHEN coldkey IN/.test(sql)) {
         return [
           {
             transfer_count: 0,
@@ -217,7 +260,7 @@ describe("loadSubnetTransferVolume", () => {
   test("rejects empty-string and non-finite last_observed timestamps", async () => {
     for (const last_observed of ["", "not-a-number"]) {
       const d1 = async (sql) => {
-        if (/COUNT\(DISTINCT hotkey\)/.test(sql)) {
+        if (/COUNT\(DISTINCT CASE WHEN coldkey IN/.test(sql)) {
           return [{ last_observed }];
         }
         return [];
@@ -229,7 +272,7 @@ describe("loadSubnetTransferVolume", () => {
 
   test("coerces a numeric-string last_observed through the string branch", async () => {
     const d1 = async (sql) => {
-      if (/COUNT\(DISTINCT hotkey\)/.test(sql)) {
+      if (/COUNT\(DISTINCT CASE WHEN coldkey IN/.test(sql)) {
         return [{ last_observed: "1717900000000" }];
       }
       return [];
@@ -240,7 +283,7 @@ describe("loadSubnetTransferVolume", () => {
 
   test("non-array D1 payloads degrade safely", async () => {
     const d1 = async (sql) => {
-      if (/COUNT\(DISTINCT hotkey\)/.test(sql)) return null;
+      if (/COUNT\(DISTINCT CASE WHEN coldkey IN/.test(sql)) return null;
       if (/GROUP BY hotkey/.test(sql)) return null;
       if (/GROUP BY coldkey/.test(sql)) return undefined;
       return null;
@@ -256,7 +299,7 @@ describe("loadSubnetTransferVolume", () => {
     let cap;
     const d1 = async (sql, params) => {
       if (/GROUP BY hotkey/.test(sql)) cap = params.at(-1);
-      if (/COUNT\(DISTINCT hotkey\)/.test(sql)) return [{}];
+      if (/COUNT\(DISTINCT CASE WHEN coldkey IN/.test(sql)) return [{}];
       return [];
     };
     await loadSubnetTransferVolume(d1, 7, { limit: 15 });
@@ -265,7 +308,7 @@ describe("loadSubnetTransferVolume", () => {
 
   test("resolveWindowLabel keeps a supported window label", async () => {
     const d1 = async (sql) => {
-      if (/COUNT\(DISTINCT hotkey\)/.test(sql)) return [{}];
+      if (/COUNT\(DISTINCT CASE WHEN coldkey IN/.test(sql)) return [{}];
       return [];
     };
     const { data } = await loadSubnetTransferVolume(d1, 7, {
@@ -279,7 +322,7 @@ describe("loadSubnetTransferVolume", () => {
     vi.setSystemTime(new Date("2026-06-30T00:00:00.000Z"));
     let captured;
     const d1 = async (sql, params) => {
-      if (/COUNT\(DISTINCT hotkey\)/.test(sql)) captured = params;
+      if (/COUNT\(DISTINCT CASE WHEN coldkey IN/.test(sql)) captured = params;
       return [];
     };
     const { data } = await loadSubnetTransferVolume(d1, 7, {
@@ -287,7 +330,7 @@ describe("loadSubnetTransferVolume", () => {
     });
     assert.equal(data.window, DEFAULT_SUBNET_TRANSFER_VOLUME_WINDOW);
     assert.equal(
-      captured[1],
+      captured[3],
       Date.now() - SUBNET_TRANSFER_VOLUME_WINDOWS["30d"] * DAY_MS,
     );
     vi.useRealTimers();
@@ -299,7 +342,7 @@ describe("loadSubnetTransferVolume", () => {
       if (/GROUP BY hotkey/.test(sql) || /GROUP BY coldkey/.test(sql)) {
         limits.push(params.at(-1));
       }
-      if (/COUNT\(DISTINCT hotkey\)/.test(sql)) return [{}];
+      if (/COUNT\(DISTINCT CASE WHEN coldkey IN/.test(sql)) return [{}];
       return [];
     };
     await loadSubnetTransferVolume(d1, 7, { limit: 12.9 });
@@ -312,7 +355,7 @@ describe("loadSubnetTransferVolume", () => {
       if (/GROUP BY hotkey/.test(sql) || /GROUP BY coldkey/.test(sql)) {
         limits.push(params.at(-1));
       }
-      if (/COUNT\(DISTINCT hotkey\)/.test(sql)) return [{}];
+      if (/COUNT\(DISTINCT CASE WHEN coldkey IN/.test(sql)) return [{}];
       return [];
     };
     await loadSubnetTransferVolume(d1, 7, { limit: 500 });

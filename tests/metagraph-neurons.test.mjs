@@ -639,7 +639,7 @@ describe("metagraph routes (#1304/#1305) via the Worker", () => {
             bind() {
               return {
                 all() {
-                  if (/COUNT\(DISTINCT hotkey\) AS unique_senders/.test(sql)) {
+                  if (/COUNT\(DISTINCT CASE WHEN coldkey IN/.test(sql)) {
                     return Promise.resolve({
                       results: [
                         {

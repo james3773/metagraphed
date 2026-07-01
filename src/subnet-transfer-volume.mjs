@@ -25,6 +25,13 @@ const TRANSFER_MEMBERSHIP_CLAUSE =
   "(hotkey IN (SELECT hotkey FROM neurons WHERE netuid = ? AND hotkey IS NOT NULL) " +
   "OR coldkey IN (SELECT hotkey FROM neurons WHERE netuid = ? AND hotkey IS NOT NULL))";
 
+// Leaderboards and distinct sender/receiver counts only include registered subnet hotkeys
+// (the neurons snapshot stores operator hotkeys). External counterparties in an attributed
+// transfer — e.g. a subnet account paying an off-subnet address — must not appear as
+// top_receivers just because the transfer matched the membership filter.
+const NEURON_HOTKEYS_SUBQUERY =
+  "SELECT hotkey FROM neurons WHERE netuid = ? AND hotkey IS NOT NULL";
+
 // 1 TAO = 1e9 rao; round every TAO output to that precision to shed IEEE-754 noise from
 // summing many REAL amount_tao values (the same rounding the chain/fees market applies).
 const RAO_PER_TAO = 1e9;
@@ -111,10 +118,11 @@ export function buildSubnetTransferVolume({
 }
 
 // One subnet's native-TAO transfer analytics: a totals aggregate plus the top senders
-// (by hotkey) and top receivers (by coldkey) over the window, from the account_events
-// Transfer feed attributed via the current neurons snapshot. Returns { data, generatedAt }
-// where generatedAt is the newest event's observed_at as an ISO string (string|null per
-// the envelope contract). Cold/absent D1 -> zeroed card.
+// (outgoing, by registered hotkey) and top receivers (incoming, by registered hotkey)
+// over the window, from the account_events Transfer feed attributed via the neurons
+// snapshot. Returns { data, generatedAt } where generatedAt is the newest event's
+// observed_at as an ISO string (string|null per the envelope contract). Cold/absent D1
+// -> zeroed card.
 export async function loadSubnetTransferVolume(
   d1,
   netuid,
@@ -131,29 +139,33 @@ export async function loadSubnetTransferVolume(
   const totalsRows = await d1(
     "SELECT COUNT(*) AS transfer_count, " +
       "COALESCE(SUM(amount_tao), 0) AS total_volume_tao, " +
-      "COUNT(DISTINCT hotkey) AS unique_senders, " +
-      "COUNT(DISTINCT coldkey) AS unique_receivers, " +
+      "COUNT(DISTINCT CASE WHEN hotkey IN (" +
+      NEURON_HOTKEYS_SUBQUERY +
+      ") THEN hotkey END) AS unique_senders, " +
+      "COUNT(DISTINCT CASE WHEN coldkey IN (" +
+      NEURON_HOTKEYS_SUBQUERY +
+      ") THEN coldkey END) AS unique_receivers, " +
       "MAX(observed_at) AS last_observed " +
       "FROM account_events " +
       "WHERE event_kind = ? AND observed_at >= ? AND " +
       TRANSFER_MEMBERSHIP_CLAUSE,
-    [TRANSFER_KIND, cutoff, netuid, netuid],
+    [netuid, netuid, TRANSFER_KIND, cutoff, netuid, netuid],
   );
   const senders = await d1(
     "SELECT hotkey AS address, SUM(amount_tao) AS volume_tao, " +
       "COUNT(*) AS transfer_count FROM account_events " +
-      "WHERE event_kind = ? AND observed_at >= ? AND hotkey IN " +
-      "(SELECT hotkey FROM neurons WHERE netuid = ? AND hotkey IS NOT NULL) " +
-      "GROUP BY hotkey ORDER BY volume_tao DESC, hotkey ASC LIMIT ?",
+      "WHERE event_kind = ? AND observed_at >= ? AND hotkey IN (" +
+      NEURON_HOTKEYS_SUBQUERY +
+      ") GROUP BY hotkey ORDER BY volume_tao DESC, hotkey ASC LIMIT ?",
     [TRANSFER_KIND, cutoff, netuid, cap],
   );
   const receivers = await d1(
     "SELECT coldkey AS address, SUM(amount_tao) AS volume_tao, " +
       "COUNT(*) AS transfer_count FROM account_events " +
-      "WHERE event_kind = ? AND observed_at >= ? AND coldkey IS NOT NULL AND " +
-      TRANSFER_MEMBERSHIP_CLAUSE +
-      " GROUP BY coldkey ORDER BY volume_tao DESC, coldkey ASC LIMIT ?",
-    [TRANSFER_KIND, cutoff, netuid, netuid, cap],
+      "WHERE event_kind = ? AND observed_at >= ? AND coldkey IN (" +
+      NEURON_HOTKEYS_SUBQUERY +
+      ") GROUP BY coldkey ORDER BY volume_tao DESC, coldkey ASC LIMIT ?",
+    [TRANSFER_KIND, cutoff, netuid, cap],
   );
 
   const totals = Array.isArray(totalsRows) ? totalsRows[0] : null;
