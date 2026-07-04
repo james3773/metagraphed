@@ -522,7 +522,7 @@ test("buildChainSigners nulls non-finite and negative last_tx_block", () => {
 test("buildChainSigners nulls blank last_tx_block cells that coerce to 0", () => {
   // Mirrors the blank-cell guard in transfer-pairs.mjs (#2992): Number("") and
   // Number("   ") are 0, which would fabricate genesis block height.
-  for (const blank of ["", "   "]) {
+  for (const blank of [null, undefined, "", "   "]) {
     const out = buildChainSigners({
       window: "7d",
       rows: [{ signer: "5A", tx_count: 1, last_tx_block: blank }],
