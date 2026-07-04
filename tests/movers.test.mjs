@@ -9,7 +9,11 @@ import {
 } from "../src/movers.mjs";
 
 // Aggregate row helper: one neuron_daily GROUP BY netuid,snapshot_date row.
-function agg(netuid, snapshot_date, { neurons, validators, stake, emission }) {
+function agg(
+  netuid,
+  snapshot_date,
+  { neurons = 0, validators = 0, stake = 0, emission = 0 } = {},
+) {
   return {
     netuid,
     snapshot_date,
@@ -174,10 +178,9 @@ describe("computeMovers", () => {
     assert.equal(m[0].netuid, 1);
   });
 
-  test("skips rows with a malformed netuid and coerces non-finite cells to zero", () => {
+  test("skips rows with a malformed netuid", () => {
     const m = computeMovers(
       [
-        agg(1, "s", { neurons: 1, validators: 0, stake: "oops", emission: 0 }),
         {
           netuid: "bad",
           snapshot_date: "s",
@@ -190,10 +193,99 @@ describe("computeMovers", () => {
       [agg(1, "e", { neurons: 1, validators: 0, stake: 50, emission: 0 })],
       { sort: "stake" },
     );
-    assert.equal(m.length, 1); // the "bad" netuid row is dropped
+    assert.equal(m.length, 1);
     assert.equal(m[0].netuid, 1);
-    assert.equal(m[0].stake_start_tao, 0); // "oops" coerced to 0
-    assert.equal(m[0].stake_delta_tao, 50);
+  });
+
+  test("skips blank/null/non-numeric aggregate cells instead of coercing to zero", () => {
+    for (const blank of ["", "   ", null, "oops"]) {
+      const m = computeMovers(
+        [
+          agg(1, "s", {
+            neurons: 100,
+            validators: 5,
+            stake: blank,
+            emission: 10,
+          }),
+          agg(2, "s", { neurons: 10, validators: 2, stake: 50, emission: 5 }),
+        ],
+        [
+          agg(1, "e", { neurons: 50, validators: 3, stake: 200, emission: 12 }),
+          agg(2, "e", { neurons: 10, validators: 2, stake: 60, emission: 5 }),
+        ],
+        { sort: "stake" },
+      );
+      const s1 = m.find((x) => x.netuid === 1);
+      // Start snapshot skipped -> treated as absent (zeros), not phantom 0 stake / 100 neurons.
+      assert.equal(
+        s1.stake_start_tao,
+        0,
+        `stake_start for total_stake_tao ${JSON.stringify(blank)}`,
+      );
+      assert.equal(
+        s1.neurons_start,
+        0,
+        `neurons_start for total_stake_tao ${JSON.stringify(blank)}`,
+      );
+      assert.equal(s1.stake_end_tao, 200);
+      assert.equal(s1.neurons_end, 50);
+      const { network } = buildMovers(
+        [
+          agg(1, "s", {
+            neurons: 100,
+            validators: 5,
+            stake: blank,
+            emission: 10,
+          }),
+          agg(2, "s", { neurons: 10, validators: 2, stake: 50, emission: 5 }),
+        ],
+        [
+          agg(1, "e", {
+            neurons: 50,
+            validators: 3,
+            stake: 200,
+            emission: 12,
+          }),
+          agg(2, "e", { neurons: 10, validators: 2, stake: 60, emission: 5 }),
+        ],
+        { window: "30d", startDate: "s", endDate: "e", sort: "stake" },
+      );
+      assert.equal(
+        network.total_stake_start_tao,
+        50,
+        `network stake start for total_stake_tao ${JSON.stringify(blank)}`,
+      );
+      assert.equal(
+        network.total_validators_start,
+        2,
+        `network validators start for total_stake_tao ${JSON.stringify(blank)}`,
+      );
+    }
+    const zero = computeMovers(
+      [agg(1, "s", { neurons: 1, validators: 0, stake: 0, emission: 0 })],
+      [agg(1, "e", { neurons: 1, validators: 0, stake: 50, emission: 0 })],
+      { sort: "stake" },
+    );
+    assert.equal(zero[0].stake_start_tao, 0);
+    assert.equal(zero[0].stake_delta_tao, 50);
+  });
+
+  test("skips rows with blank emission aggregates", () => {
+    const m = computeMovers(
+      [
+        agg(1, "s", {
+          neurons: 10,
+          validators: 2,
+          stake: 100,
+          emission: "   ",
+        }),
+      ],
+      [agg(1, "e", { neurons: 10, validators: 2, stake: 100, emission: 5 })],
+      { sort: "emission" },
+    );
+    assert.equal(m[0].emission_start_tao, 0);
+    assert.equal(m[0].emission_end_tao, 5);
+    assert.equal(m[0].emission_delta_tao, 5);
   });
 
   test("skips rows with a null or blank netuid instead of coercing to subnet 0", () => {

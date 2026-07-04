@@ -33,6 +33,15 @@ function toNumber(value) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+// A finite aggregate cell, or null when absent/blank/non-numeric. Blank D1 cells coerce
+// via Number("") → 0; trim rejects "" / whitespace-only (mirrors counterparties #3059).
+function nullableNumber(value) {
+  if (value == null) return null;
+  if (typeof value === "string" && value.trim() === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
 // A non-negative integer netuid, or null for a malformed/absent cell. Guard null
 // explicitly so a null netuid is skipped rather than coerced to subnet 0
 // (Number(null) === 0). Mirrors normalizedNetuid in account-stake-flow.mjs.
@@ -58,12 +67,19 @@ function indexByNetuid(rows) {
   for (const row of Array.isArray(rows) ? rows : []) {
     const netuid = normalizedNetuid(row?.netuid);
     if (netuid == null) continue;
-    map.set(netuid, {
-      neurons: toNumber(row?.neuron_count),
-      validators: toNumber(row?.validator_count),
-      stake: toNumber(row?.total_stake_tao),
-      emission: toNumber(row?.total_emission_tao),
-    });
+    const neurons = nullableNumber(row?.neuron_count);
+    const validators = nullableNumber(row?.validator_count);
+    const stake = nullableNumber(row?.total_stake_tao);
+    const emission = nullableNumber(row?.total_emission_tao);
+    if (
+      neurons == null ||
+      validators == null ||
+      stake == null ||
+      emission == null
+    ) {
+      continue;
+    }
+    map.set(netuid, { neurons, validators, stake, emission });
   }
   return map;
 }
