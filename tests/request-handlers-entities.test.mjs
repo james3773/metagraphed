@@ -28,6 +28,7 @@ import {
   handleSubnetPerformanceHistory,
   handleSubnetYieldHistory,
   handleChainYieldHistory,
+  canonicalChainYieldHistoryCachePath,
   handleSubnetTurnover,
   handleSubnetStakeFlow,
   handleSubnetWeights,
@@ -1708,6 +1709,44 @@ describe("handleChainYieldHistory", () => {
     );
     assert.ok(idx !== -1);
     assert.equal(captures.params[idx].length, 2);
+  });
+});
+
+describe("canonicalChainYieldHistoryCachePath", () => {
+  test("omitted window and explicit ?window=30d produce the same cache key", () => {
+    const noWindow = canonicalChainYieldHistoryCachePath(
+      new URL("https://api.metagraph.sh/api/v1/chain/yield/history"),
+    );
+    const explicit30d = canonicalChainYieldHistoryCachePath(
+      new URL(
+        "https://api.metagraph.sh/api/v1/chain/yield/history?window=30d",
+      ),
+    );
+    assert.equal(noWindow, explicit30d);
+    assert.equal(noWindow, "/api/v1/chain/yield/history?window=30d");
+  });
+
+  test("preserves a non-default valid window label", () => {
+    const key = canonicalChainYieldHistoryCachePath(
+      new URL("https://api.metagraph.sh/api/v1/chain/yield/history?window=7d"),
+    );
+    assert.equal(key, "/api/v1/chain/yield/history?window=7d");
+  });
+
+  test("returns raw search on an invalid window value", () => {
+    const raw = "/api/v1/chain/yield/history?window=bogus";
+    const key = canonicalChainYieldHistoryCachePath(
+      new URL(`https://api.metagraph.sh${raw}`),
+    );
+    assert.equal(key, raw);
+  });
+
+  test("returns raw search on an unsupported query parameter", () => {
+    const raw = "/api/v1/chain/yield/history?unknown=1";
+    const key = canonicalChainYieldHistoryCachePath(
+      new URL(`https://api.metagraph.sh${raw}`),
+    );
+    assert.equal(key, raw);
   });
 });
 
