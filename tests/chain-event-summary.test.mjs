@@ -526,6 +526,26 @@ describe("handleChainEventSummary", () => {
     assert.equal(body.data.limit, 10);
   });
 
+  test("includes an explicit limit in the cache key when provided", async () => {
+    const res = await handleChainEventSummary(
+      new Request(
+        "https://api.metagraph.sh/api/v1/chain/event-summary?window=7d&limit=5",
+      ),
+      eventSummaryEnv({
+        probeRow: [{ subnet_count: 1, newest_observed: OBS }],
+        kindRows: [kindRow("StakeAdded", 1, { subnet_count: 1 })],
+        recentRows: [],
+      }),
+      new URL(
+        "https://api.metagraph.sh/api/v1/chain/event-summary?window=7d&limit=5",
+      ),
+      {},
+    );
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.data.limit, 5);
+  });
+
   test("returns an empty HEAD body while preserving response headers", async () => {
     const res = await handleChainEventSummary(
       new Request("https://api.metagraph.sh/api/v1/chain/event-summary", {
