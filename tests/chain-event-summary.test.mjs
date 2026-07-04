@@ -239,6 +239,46 @@ describe("buildChainEventSummary", () => {
     );
   });
 
+  test("maps every documented runtime event kind to a coarse category", () => {
+    const kinds = [
+      "NeuronRegistered",
+      "NeuronDeregistered",
+      "NetworkAdded",
+      "NetworkRemoved",
+      "RegistrationAllowed",
+      "PowRegistrationAllowed",
+      "Faucet",
+      "StakeAdded",
+      "StakeRemoved",
+      "StakeMoved",
+      "StakeTransferred",
+      "AxonServed",
+      "PrometheusServed",
+      "AxonInfoRemoved",
+      "WeightsSet",
+      "RootClaimed",
+      "DelegateAdded",
+      "TakeDecreased",
+      "TakeIncreased",
+      "HotkeySwapped",
+      "ColdkeySwapped",
+      "ColdkeySwapScheduled",
+      "SubnetOwnerHotkeySet",
+      "BurnSet",
+      "Transfer",
+    ];
+    const out = buildChainEventSummary(
+      kinds.map((event_kind, i) => kindRow(event_kind, i + 1)),
+      [],
+      { subnetCount: kinds.length },
+    );
+    assert.equal(out.kind_count, kinds.length);
+    assert.equal(
+      out.total_events,
+      kinds.reduce((sum, _, i) => sum + i + 1, 0),
+    );
+  });
+
   test("derives observed_at from recent evidence when kind rows omit timestamps", () => {
     const out = buildChainEventSummary(
       [kindRow("StakeAdded", 1, { last_observed_at: null })],
@@ -484,6 +524,23 @@ describe("handleChainEventSummary", () => {
     const body = await res.json();
     assert.equal(body.data.window, "7d");
     assert.equal(body.data.limit, 10);
+  });
+
+  test("returns an empty HEAD body while preserving response headers", async () => {
+    const res = await handleChainEventSummary(
+      new Request("https://api.metagraph.sh/api/v1/chain/event-summary", {
+        method: "HEAD",
+      }),
+      eventSummaryEnv({
+        probeRow: [{ subnet_count: 1, newest_observed: OBS }],
+        kindRows: [kindRow("StakeAdded", 1, { subnet_count: 1 })],
+        recentRows: [],
+      }),
+      new URL("https://api.metagraph.sh/api/v1/chain/event-summary"),
+      {},
+    );
+    assert.equal(res.status, 200);
+    assert.equal(await res.text(), "");
   });
 });
 
