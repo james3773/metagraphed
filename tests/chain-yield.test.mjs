@@ -204,6 +204,15 @@ describe("buildChainYield", () => {
     assert.equal(out.miner_yield, 0.1);
   });
 
+  test("subnet_count ignores skipped blank-stake rows", () => {
+    const out = buildChainYield([
+      { stake_tao: "", emission_tao: 5, netuid: 7 },
+      { stake_tao: 10, emission_tao: 1, netuid: 12 },
+    ]);
+    assert.equal(out.subnet_count, 1);
+    assert.equal(out.neuron_count, 1);
+  });
+
   test("cold/empty network → schema-stable zero (yields + distribution null)", () => {
     const out = buildChainYield([]);
     assert.equal(out.subnet_count, 0);

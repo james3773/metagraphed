@@ -152,10 +152,10 @@ export function buildChainYield(rows) {
     if (captured && (capturedAt == null || captured.ms > capturedAt.ms)) {
       capturedAt = captured;
     }
-    const netuid = subnetNetuid(row?.netuid);
-    if (netuid != null) netuids.add(netuid);
     const stake = nullableTao(row?.stake_tao);
     if (stake == null) continue;
+    const netuid = subnetNetuid(row?.netuid);
+    if (netuid != null) netuids.add(netuid);
     neuronCount += 1;
     const emission = nullableTao(row?.emission_tao);
     // Match the neuron formatter's SQLite 0/1 convention: only an integer 1 is a
