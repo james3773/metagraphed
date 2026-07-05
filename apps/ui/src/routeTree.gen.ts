@@ -19,6 +19,7 @@ import { Route as EndpointsRouteImport } from './routes/endpoints'
 import { Route as AgentsRouteImport } from './routes/agents'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ValidatorsIndexRouteImport } from './routes/validators.index'
 import { Route as SubnetsIndexRouteImport } from './routes/subnets.index'
 import { Route as ProvidersIndexRouteImport } from './routes/providers.index'
 import { Route as ExtrinsicsIndexRouteImport } from './routes/extrinsics.index'
@@ -78,6 +79,11 @@ const AboutRoute = AboutRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ValidatorsIndexRoute = ValidatorsIndexRouteImport.update({
+  id: '/validators/',
+  path: '/validators/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SubnetsIndexRoute = SubnetsIndexRouteImport.update({
@@ -152,6 +158,7 @@ export interface FileRoutesByFullPath {
   '/extrinsics/': typeof ExtrinsicsIndexRoute
   '/providers/': typeof ProvidersIndexRoute
   '/subnets/': typeof SubnetsIndexRoute
+  '/validators/': typeof ValidatorsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -174,6 +181,7 @@ export interface FileRoutesByTo {
   '/extrinsics': typeof ExtrinsicsIndexRoute
   '/providers': typeof ProvidersIndexRoute
   '/subnets': typeof SubnetsIndexRoute
+  '/validators': typeof ValidatorsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -197,6 +205,7 @@ export interface FileRoutesById {
   '/extrinsics/': typeof ExtrinsicsIndexRoute
   '/providers/': typeof ProvidersIndexRoute
   '/subnets/': typeof SubnetsIndexRoute
+  '/validators/': typeof ValidatorsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -221,6 +230,7 @@ export interface FileRouteTypes {
     | '/extrinsics/'
     | '/providers/'
     | '/subnets/'
+    | '/validators/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -243,6 +253,7 @@ export interface FileRouteTypes {
     | '/extrinsics'
     | '/providers'
     | '/subnets'
+    | '/validators'
   id:
     | '__root__'
     | '/'
@@ -265,6 +276,7 @@ export interface FileRouteTypes {
     | '/extrinsics/'
     | '/providers/'
     | '/subnets/'
+    | '/validators/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -288,6 +300,7 @@ export interface RootRouteChildren {
   ExtrinsicsIndexRoute: typeof ExtrinsicsIndexRoute
   ProvidersIndexRoute: typeof ProvidersIndexRoute
   SubnetsIndexRoute: typeof SubnetsIndexRoute
+  ValidatorsIndexRoute: typeof ValidatorsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -360,6 +373,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/validators/': {
+      id: '/validators/'
+      path: '/validators'
+      fullPath: '/validators/'
+      preLoaderRoute: typeof ValidatorsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/subnets/': {
@@ -456,6 +476,7 @@ const rootRouteChildren: RootRouteChildren = {
   ExtrinsicsIndexRoute: ExtrinsicsIndexRoute,
   ProvidersIndexRoute: ProvidersIndexRoute,
   SubnetsIndexRoute: SubnetsIndexRoute,
+  ValidatorsIndexRoute: ValidatorsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
