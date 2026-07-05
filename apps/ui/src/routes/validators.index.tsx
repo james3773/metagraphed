@@ -160,10 +160,10 @@ function ValidatorsDirectory() {
         {rows.length
           ? `${formatNumber(rows.length)} shown · ${formatNumber(payload.validator_count ?? rows.length)} total`
           : "0 validators"}
-        {res.meta?.captured_at ? (
+        {payload.captured_at ? (
           <>
             {" "}
-            · snapshot <TimeAgo at={res.meta.captured_at} />
+            · snapshot <TimeAgo at={payload.captured_at} />
           </>
         ) : null}
       </span>
