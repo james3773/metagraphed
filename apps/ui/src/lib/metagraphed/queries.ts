@@ -48,6 +48,8 @@ import type {
   ChainFeePayer,
   ChainConcentration,
   ChainPerformance,
+  ChainYield,
+  YieldDistribution,
   ChainSigners,
   ChainSignerEntry,
   Extrinsic,
@@ -3064,6 +3066,42 @@ export function normalizeChainPerformance(raw: unknown): ChainPerformance {
   };
 }
 
+export function normalizeYieldDistributionOrNull(raw: unknown): YieldDistribution | null {
+  if (raw == null) return null;
+  if (!isPlainRecord(raw)) return null;
+  const count = coerceFiniteNumber(raw.count);
+  if (count == null || count === 0) return null;
+  return {
+    count,
+    mean: coerceFiniteNumber(raw.mean) ?? null,
+    median: coerceFiniteNumber(raw.median) ?? null,
+    min: coerceFiniteNumber(raw.min) ?? null,
+    max: coerceFiniteNumber(raw.max) ?? null,
+    p10: coerceFiniteNumber(raw.p10) ?? null,
+    p25: coerceFiniteNumber(raw.p25) ?? null,
+    p75: coerceFiniteNumber(raw.p75) ?? null,
+    p90: coerceFiniteNumber(raw.p90) ?? null,
+  };
+}
+
+export function normalizeChainYield(raw: unknown): ChainYield {
+  const d = isPlainRecord(raw) ? raw : {};
+  return {
+    schema_version: coerceFiniteNumber(d.schema_version) ?? 1,
+    subnet_count: coerceFiniteNumber(d.subnet_count) ?? 0,
+    neuron_count: coerceFiniteNumber(d.neuron_count) ?? 0,
+    validator_count: coerceFiniteNumber(d.validator_count),
+    miner_count: coerceFiniteNumber(d.miner_count),
+    captured_at: coerceString(d.captured_at) ?? null,
+    total_stake_tao: coerceFiniteNumber(d.total_stake_tao),
+    total_emission_tao: coerceFiniteNumber(d.total_emission_tao),
+    network_yield: coerceFiniteNumber(d.network_yield) ?? null,
+    validator_yield: coerceFiniteNumber(d.validator_yield) ?? null,
+    miner_yield: coerceFiniteNumber(d.miner_yield) ?? null,
+    distribution: normalizeYieldDistributionOrNull(d.distribution),
+  };
+}
+
 function normalizeSubnetConcentration(netuid: number, raw: unknown): SubnetConcentration {
   const d = isPlainRecord(raw) ? raw : {};
   return {
@@ -3262,6 +3300,21 @@ export const chainPerformanceQuery = () =>
         meta: res.meta,
         url: res.url,
       } as ApiResult<ChainPerformance>;
+    },
+    staleTime: STALE_MED,
+  });
+
+/** Network-wide emission-yield aggregate (return rate + validator/miner split). */
+export const chainYieldQuery = () =>
+  queryOptions({
+    queryKey: k("chain-yield"),
+    queryFn: async ({ signal }) => {
+      const res = await apiFetch<Partial<ChainYield>>("/api/v1/chain/yield", { signal });
+      return {
+        data: normalizeChainYield(res.data),
+        meta: res.meta,
+        url: res.url,
+      } as ApiResult<ChainYield>;
     },
     staleTime: STALE_MED,
   });

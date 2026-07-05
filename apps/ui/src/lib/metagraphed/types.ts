@@ -1436,6 +1436,35 @@ export interface ChainPerformance {
   validator_trust: ScoreDistribution | null;
 }
 
+/** Per-neuron emission/stake return spread from chain yield artifacts. */
+export interface YieldDistribution {
+  count: number;
+  mean?: number | null;
+  median?: number | null;
+  min?: number | null;
+  max?: number | null;
+  p10?: number | null;
+  p25?: number | null;
+  p75?: number | null;
+  p90?: number | null;
+}
+
+/** Network-wide emission yield from GET /api/v1/chain/yield. */
+export interface ChainYield {
+  schema_version: number;
+  subnet_count: number;
+  neuron_count: number;
+  validator_count?: number;
+  miner_count?: number;
+  captured_at: string | null;
+  total_stake_tao?: number;
+  total_emission_tao?: number;
+  network_yield: number | null;
+  validator_yield: number | null;
+  miner_yield: number | null;
+  distribution: YieldDistribution | null;
+}
+
 /* ===================== Theme C: registry & network-health depth ===================== */
 
 /**
