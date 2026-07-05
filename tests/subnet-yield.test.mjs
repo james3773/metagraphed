@@ -469,6 +469,27 @@ describe("buildSubnetYieldHistory", () => {
     }
   });
 
+  test("reject blank stake_tao/emission_tao cells in daily history points", () => {
+    const data = buildSubnetYieldHistory(
+      [
+        { snapshot_date: "2026-06-27", stake_tao: "", emission_tao: 10 },
+        { snapshot_date: "2026-06-27", stake_tao: 100, emission_tao: "   " },
+        {
+          snapshot_date: "2026-06-27",
+          stake_tao: 100,
+          emission_tao: 10,
+          validator_permit: 1,
+        },
+      ],
+      7,
+      { window: "7d" },
+    );
+    assert.equal(data.point_count, 1);
+    assert.equal(data.points[0].neuron_count, 3);
+    assert.equal(data.points[0].yield_count, 1);
+    assert.equal(data.points[0].median_yield, 0.1);
+  });
+
   test("a day with no staked UIDs yields null distribution metrics", () => {
     const data = buildSubnetYieldHistory(
       [{ snapshot_date: "2026-06-27", stake_tao: 0, emission_tao: 5 }],
