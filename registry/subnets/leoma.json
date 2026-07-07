@@ -34,6 +34,22 @@
         "https://api.leoma.ai/openapi.json"
       ],
       "url": "https://api.leoma.ai/health"
+    },
+    {
+      "auth_required": false,
+      "authority": "community",
+      "id": "sn-99-leoma-scores-stats",
+      "kind": "data-artifact",
+      "name": "Leoma network score summary",
+      "notes": "Public no-auth GET /scores/stats on api.leoma.ai returning network-wide aggregate counters (total_validators, total_miners, total_samples, total_score_entries, overall_pass_rate). Documented as a route in the subnet's own OpenAPI schema (api.leoma.ai/openapi.json, already cited as a source for the existing health surface); same api.leoma.ai host.",
+      "provider": "leoma",
+      "public_safe": true,
+      "review": {
+        "state": "community-submitted",
+        "submitted_by": "philluiz2323"
+      },
+      "source_urls": ["https://api.leoma.ai/openapi.json"],
+      "url": "https://api.leoma.ai/scores/stats"
     }
   ]
 }
