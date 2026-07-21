@@ -35,7 +35,7 @@
       "id": "sn-107-minos-subnet-api",
       "kind": "subnet-api",
       "name": "Minos Platform API",
-      "notes": "Public health/status endpoint of the Minos Platform (api.theminos.ai), the hosted round-coordination service documented in the official minos_subnet README. Unauthenticated GET returns JSON service status; the /v2/* task endpoints require hotkey auth.",
+      "notes": "Public health/status endpoint of the Minos Platform (api.theminos.ai), the hosted round-coordination service documented in the official minos_subnet README. Unauthenticated GET returns JSON service status; the /v2/* task endpoints require hotkey auth. Live-verified 2026-07-21: HTTP 200 application/json {\"status\":\"healthy\",\"version\":\"2.0.0\",\"mode\":\"active\"}.",
       "probe": {
         "enabled": true,
         "expect": "json",
@@ -59,7 +59,7 @@
       "id": "sn-107-taomarketcap-subnet-api",
       "kind": "subnet-api",
       "name": "Minos TaoMarketCap subnet snapshot API",
-      "notes": "Public no-auth GET /public/v1/subnets/107/ on api.taomarketcap.com returning machine-readable JSON for SN107 Minos on-chain subnet state, economics, registration/burn parameters, and dTAO market fields. This indexed feed is documented in the TaoMarketCap developer API and provides the standalone public JSON data for netuid 107 alongside the subnet's first-party /health endpoint. TaoMarketCap now enforces a trailing slash (the non-slash path 301s); tracked URL updated to the canonical non-redirecting form. Rejects HEAD (405); probe uses GET.",
+      "notes": "Public no-auth GET /public/v1/subnets/107/ on api.taomarketcap.com returning machine-readable JSON for SN107 Minos on-chain subnet state, economics, registration/burn parameters, and dTAO market fields. This indexed feed is documented in the TaoMarketCap developer API and provides the standalone public JSON data for netuid 107 alongside the subnet's first-party /health endpoint. TaoMarketCap now enforces a trailing slash (the non-slash path 301s); tracked URL updated to the canonical non-redirecting form. Rejects HEAD (405); probe uses GET. Live-verified 2026-07-21: HTTP 200 application/json (~4 KB) with netuid 107, is_active true, and a latest_snapshot object.",
       "probe": {
         "enabled": true,
         "expect": "json",
@@ -120,7 +120,7 @@
       "id": "sn-107-minos-mcp",
       "kind": "subnet-api",
       "name": "Minos MCP (live subnet data)",
-      "notes": "Streamable-HTTP MCP server described in the official README as providing \"current round/leaderboard/miner-history data\" for the `@minos` graph and Minos MCP tooling. JSON-RPC 2.0 over SSE; a plain GET returns a protocol-negotiation error (\"Client must accept text/event-stream\") rather than 401/403, so recurring simple probes are intentionally disabled.",
+      "notes": "Streamable-HTTP MCP server described in the official README as providing \"current round/leaderboard/miner-history data\" for the `@minos` graph and Minos MCP tooling. JSON-RPC 2.0 over SSE; a plain GET returns a protocol-negotiation error (\"Client must accept text/event-stream\") rather than 401/403, so recurring simple probes are intentionally disabled. Live-verified 2026-07-21: plain GET → HTTP 406 application/json Not Acceptable (must accept text/event-stream); POST initialize with Accept text/event-stream → HTTP 200 text/event-stream, serverInfo name \"minos\" version \"1.27.2\".",
       "probe": {
         "enabled": false,
         "expect": "json",
